@@ -360,7 +360,6 @@ class ShortlistEmailRequest(BaseModel):
 
 
 class SubmitAnswersRequest(BaseModel):
-    token: str
     answers: Dict[str, str]
 
 

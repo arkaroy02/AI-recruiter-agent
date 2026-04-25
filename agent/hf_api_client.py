@@ -20,14 +20,15 @@ OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_EMBED_URL = "https://openrouter.ai/api/v1/embeddings"
 OPENROUTER_RERANK_URL = "https://openrouter.ai/api/v1/rerank"
 
-# Best models available on OpenRouter (free + paid tiers)
-# See all models at: https://openrouter.ai/models
+# Best affordable models on OpenRouter
+# See pricing at: https://openrouter.ai/models
+# All models below are high quality with minimal cost
 CHAT_MODELS = {
-    "default": "meta-llama/llama-3.3-70b-instruct:free",  # Free tier
-    "fast": "meta-llama/llama-3.3-70b-instruct:free",  # Same as default
-    "quality": "anthropic/claude-3.5-sonnet",  # Best quality (paid)
-    "interview": "meta-llama/llama-3.3-70b-instruct:free",  # Free tier for interviews
-    "reasoning": "openai/gpt-4o-mini",  # Good reasoning (paid)
+    "default": "deepseek/deepseek-chat",  # $0.14/1M tokens - Excellent quality/price
+    "fast": "google/gemini-flash-1.5",  # $0.075/1M tokens - Fast & capable
+    "quality": "anthropic/claude-3.5-sonnet",  # $3/1M tokens - Best quality
+    "interview": "google/gemini-flash-1.5",  # $0.075/1M tokens - Great for interviews
+    "reasoning": "deepseek/deepseek-reasoner",  # $0.55/1M tokens - Deep reasoning
 }
 
 HEADERS = {

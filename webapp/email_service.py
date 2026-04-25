@@ -212,13 +212,32 @@ def send_meeting_email(
             "token": meeting_token
         }
         
+    except smtplib.SMTPAuthenticationError as e:
+        return {
+            "success": False,
+            "simulated": False,
+            "message": f"SMTP Authentication failed. Check Gmail App Password. Error: {str(e)}",
+            "meeting_link": meeting_link,
+            "token": meeting_token,
+            "error_type": "SMTP_AUTH_ERROR"
+        }
+    except smtplib.SMTPException as e:
+        return {
+            "success": False,
+            "simulated": False,
+            "message": f"SMTP error: {str(e)}",
+            "meeting_link": meeting_link,
+            "token": meeting_token,
+            "error_type": "SMTP_ERROR"
+        }
     except Exception as e:
         return {
             "success": False,
             "simulated": False,
             "message": f"Failed to send email: {str(e)}",
             "meeting_link": meeting_link,
-            "token": meeting_token
+            "token": meeting_token,
+            "error_type": "GENERAL_ERROR"
         }
 
 

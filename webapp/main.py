@@ -431,6 +431,73 @@ async def debug_env() -> Dict:
     }
 
 
+@app.get("/api/debug/smtp-test")
+async def debug_smtp_test() -> Dict:
+    """Test SMTP connection to diagnose email issues."""
+    import smtplib
+    
+    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER", "")
+    smtp_password = os.getenv("SMTP_PASSWORD", "")
+    
+    if not smtp_user or not smtp_password:
+        return {
+            "success": False,
+            "error": "SMTP credentials not configured",
+            "smtp_user": smtp_user or "NOT_SET",
+            "smtp_password": "NOT_SET"
+        }
+    
+    try:
+        server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.quit()
+        
+        return {
+            "success": True,
+            "message": "SMTP connection successful! Credentials are valid.",
+            "smtp_host": smtp_host,
+            "smtp_port": smtp_port,
+            "smtp_user": smtp_user
+        }
+    except smtplib.SMTPAuthenticationError as e:
+        return {
+            "success": False,
+            "error": "SMTP Authentication Failed",
+            "error_type": "SMTP_AUTH_ERROR",
+            "message": "Gmail rejected the credentials. This usually means:",
+            "possible_causes": [
+                "1. App Password is incorrect or expired",
+                "2. 2-Factor Authentication is not enabled",
+                "3. Less Secure Apps is disabled (Gmail policy)",
+                "4. Gmail is blocking access from this server location"
+            ],
+            "solution": "Generate a new App Password at https://myaccount.google.com/apppasswords",
+            "smtp_error": str(e)
+        }
+    except smtplib.SMTPException as e:
+        return {
+            "success": False,
+            "error": "SMTP Error",
+            "error_type": "SMTP_ERROR",
+            "message": str(e)
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": "Connection Error",
+            "error_type": "CONNECTION_ERROR",
+            "message": str(e),
+            "possible_causes": [
+                "Server cannot reach Gmail SMTP servers",
+                "Firewall blocking outbound SMTP",
+                "Network connectivity issue"
+            ]
+        }
+
+
 @app.get("/interview/{token}", response_class=HTMLResponse)
 async def interview_portal(request: Request, token: str):
     """Render the interview portal page for candidates."""

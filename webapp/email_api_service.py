@@ -172,12 +172,15 @@ def send_email_via_brevo_api(
         )
         
         if response.status_code == 201:
+            response_data = response.json()
             return {
                 "success": True,
                 "simulated": False,
                 "message": f"Email sent successfully to {candidate_email}",
                 "meeting_link": meeting_link,
-                "token": meeting_token
+                "token": meeting_token,
+                "message_id": response_data.get("messageId", "N/A"),
+                "brevo_response": response_data
             }
         else:
             return {
@@ -185,7 +188,9 @@ def send_email_via_brevo_api(
                 "simulated": False,
                 "message": f"Brevo API error: {response.status_code} - {response.text}",
                 "meeting_link": meeting_link,
-                "token": meeting_token
+                "token": meeting_token,
+                "status_code": response.status_code,
+                "error_details": response.text
             }
             
     except Exception as e:
@@ -194,7 +199,8 @@ def send_email_via_brevo_api(
             "simulated": False,
             "message": f"Failed to send email: {str(e)}",
             "meeting_link": meeting_link,
-            "token": meeting_token
+            "token": meeting_token,
+            "error_type": type(e).__name__
         }
 
 

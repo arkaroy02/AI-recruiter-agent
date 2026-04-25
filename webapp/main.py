@@ -510,6 +510,44 @@ async def debug_smtp_test() -> Dict:
             }
 
 
+@app.get("/api/debug/send-test-email")
+async def debug_send_test_email() -> Dict:
+    """Send a test email to diagnose delivery issues."""
+    from webapp.email_api_service import send_email_via_brevo_api
+    
+    brevo_api_key = os.getenv("BREVO_API_KEY", "")
+    from_email = os.getenv("FROM_EMAIL", "")
+    
+    if not brevo_api_key:
+        return {
+            "success": False,
+            "error": "BREVO_API_KEY not configured"
+        }
+    
+    # Send test email to the account email
+    test_email = "zarkaroy2002@gmail.com"
+    
+    result = send_email_via_brevo_api(
+        candidate_email=test_email,
+        candidate_name="Test Candidate",
+        meeting_token="test-token-123",
+        company_name="Talent Scout Studio",
+        base_url=os.getenv("BASE_URL", "http://localhost:8000")
+    )
+    
+    return {
+        "test_email": test_email,
+        "from_email": from_email,
+        "result": result,
+        "next_steps": [
+            "1. Check your inbox (and spam folder)",
+            "2. If not received, check Brevo dashboard for delivery status",
+            "3. Verify FROM_EMAIL is a verified sender in Brevo",
+            "4. Check Brevo logs at: https://app.brevo.com/logs"
+        ]
+    }
+
+
 @app.get("/interview/{token}", response_class=HTMLResponse)
 async def interview_portal(request: Request, token: str):
     """Render the interview portal page for candidates."""

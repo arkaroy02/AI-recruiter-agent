@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Talent Scout Studio</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="bg-orb bg-orb-a"></div>
+  <div class="bg-orb bg-orb-b"></div>
+
+  <div class="app-shell">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Talent Platform</p>
+        <h1>Talent Scout Studio</h1>
+        <p class="subtitle">Full-stack recruiting workflow with AI matching and live interview console.</p>
+      </div>
+      <div class="header-meta">
+        <span id="healthBadge" class="badge muted">Checking backend...</span>
+      </div>
+    </header>
+
+    <main class="app-grid">
+      <aside class="panel controls">
+        <h2>Job Setup</h2>
+        <div class="model-callout">
+          <p class="eyebrow">Demo Runtime</p>
+          <h3>Sharper interview stack</h3>
+          <p class="small muted">Interview turns use a stronger chat model and candidate matching uses semantic Hugging Face embeddings with a local fallback.</p>
+        </div>
+
+        <h3>Resume Source</h3>
+        <label for="resumeFileInput">Upload Candidate Resumes (PDF)</label>
+        <input id="resumeFileInput" type="file" accept=".pdf,application/pdf" multiple>
+        <div class="control-row">
+          <button id="uploadResumesBtn" class="btn">Upload PDFs</button>
+          <button id="clearResumesBtn" class="btn btn-ghost">Use Sample Data</button>
+        </div>
+        <p id="resumeSourceText" class="small muted">Using built-in sample candidate dataset.</p>
+        <div id="resumeList" class="resume-list small muted"></div>
+
+        <hr>
+        <label for="jdInput">Job Description</label>
+        <textarea id="jdInput" rows="14" placeholder="Paste job description here..."></textarea>
+
+        <div class="control-row">
+          <div>
+            <label for="topKRange">Top K Candidates</label>
+            <input id="topKRange" type="range" min="3" max="10" value="5">
+            <span id="topKValue">5</span>
+          </div>
+          <div>
+            <label for="modeSelect">Interview Mode</label>
+            <select id="modeSelect">
+              <option value="demo">Demo (AI vs AI)</option>
+              <option value="real">Real (AI interviewer + human candidate)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <button id="runBtn" class="btn btn-primary">Run Pipeline</button>
+          <button id="sampleBtn" class="btn">Load Sample</button>
+          <button id="clearBtn" class="btn btn-ghost">Clear</button>
+        </div>
+
+        <hr>
+        <h3>Voice Settings</h3>
+        <label for="voiceModelSelect">Transcription Model</label>
+        <select id="voiceModelSelect">
+          <option value="tiny">Fastest (tiny)</option>
+          <option value="base">Balanced (base)</option>
+          <option value="small" selected>Better quality (small)</option>
+        </select>
+        <p class="small muted">First use of each model can be slower due to model loading.</p>
+      </aside>
+
+      <section class="panel workspace">
+        <div class="status-row">
+          <span id="statusText" class="status idle">Idle</span>
+          <span id="runIdText" class="small muted"></span>
+        </div>
+
+        <div id="workspaceTabs" class="workspace-tabs hidden">
+          <button id="resultsTabBtn" class="tab-btn active" type="button">Shortlist View</button>
+          <button id="interviewTabBtn" class="tab-btn" type="button">Interview Studio</button>
+        </div>
+
+        <section id="resultsPanel" class="workspace-panel hidden">
+          <section id="summarySection" class="summary hidden">
+            <article>
+              <h4>Role</h4>
+              <p id="metricRole">-</p>
+            </article>
+            <article>
+              <h4>Candidates</h4>
+              <p id="metricCount">-</p>
+            </article>
+            <article>
+              <h4>Top Score</h4>
+              <p id="metricTopScore">-</p>
+            </article>
+            <article>
+              <h4>Top Candidate</h4>
+              <p id="metricTopCandidate">-</p>
+            </article>
+          </section>
+
+          <section id="resultsSection" class="results hidden">
+            <div class="section-head">
+              <h3>Shortlist</h3>
+              <button id="openInterviewStudioBtn" class="btn hidden" type="button">Open Interview Studio</button>
+            </div>
+            <div id="candidateGrid" class="candidate-grid"></div>
+            <div id="candidateInsightPanel" class="candidate-insight hidden"></div>
+          </section>
+        </section>
+
+        <section id="interviewPanel" class="workspace-panel hidden">
+          <div id="interviewEmptyState" class="interview-empty hidden">
+            <p class="eyebrow">Step Two</p>
+            <h3>Interview Studio unlocks in Real mode</h3>
+            <p class="small muted">Run the pipeline in <strong>Real</strong> mode to move from ranking into a dedicated live interview workspace.</p>
+          </div>
+
+          <section id="interviewSection" class="interview hidden">
+          <div class="section-head">
+            <h3>Real Interview Console</h3>
+            <span id="interviewProgress" class="badge">0/0 completed</span>
+          </div>
+
+          <div class="interview-hero">
+            <div>
+              <p class="eyebrow">Live Session</p>
+              <h4>Run this like a real recruiter screen</h4>
+              <p class="small muted">The AI asks one question at a time. Voice mode can read questions aloud and listen for the candidate response in supported browsers.</p>
+            </div>
+            <div class="interview-hero-meta">
+              <span id="liveBadge" class="badge muted">Live voice off</span>
+              <span id="thinkingBadge" class="badge muted">Ready</span>
+            </div>
+          </div>
+
+          <div class="interview-controls">
+            <div>
+              <label for="interviewCandidateSelect">Candidate</label>
+              <select id="interviewCandidateSelect"></select>
+            </div>
+            <div class="control-row">
+              <button id="startInterviewBtn" class="btn btn-primary">Start Interview</button>
+              <button id="liveInterviewBtn" class="btn">Start Live Voice</button>
+              <button id="resetInterviewBtn" class="btn btn-ghost">Reset</button>
+            </div>
+          </div>
+
+          <div id="liveHint" class="live-hint small muted">
+            Voice mode works best in Chrome or Edge. If speech tools are unavailable, the interview still works in text mode.
+          </div>
+
+          <div id="currentQuestionCard" class="current-question hidden"></div>
+
+          <div id="chatFeed" class="chat-feed"></div>
+
+          <div class="response-grid">
+            <div>
+              <label for="responseInput">Candidate Response</label>
+              <textarea id="responseInput" rows="4" placeholder="Type candidate response..."></textarea>
+              <button id="sendResponseBtn" class="btn btn-primary full">Send Response</button>
+            </div>
+            <div>
+              <label for="audioFileInput">Audio Upload (optional)</label>
+              <input id="audioFileInput" type="file" accept="audio/*">
+              <button id="transcribeBtn" class="btn full">Transcribe Audio</button>
+              <p class="small muted">Uploads audio and fills the response draft.</p>
+            </div>
+          </div>
+          </section>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+# Production Docker Compose for Talent Scout Studio
+# Uses OpenRouter API - no local Ollama needed
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: talent_scout_app
+    ports:
+      - "8000:8000"
+    environment:
+      # OpenRouter API Configuration
+      - OPEN_ROUTER_TOKEN=${OPEN_ROUTER_TOKEN}
+      - HF_CHAT_MODEL=${HF_CHAT_MODEL:-meta-llama/llama-3.1-8b-instruct:free}
+      - HF_INTERVIEW_MODEL=${HF_INTERVIEW_MODEL:-google/gemini-flash-1.5}
+      - HF_EMBED_MODEL=${HF_EMBED_MODEL:-local}
+      # Legacy compatibility
+      - HF_TOKEN=${OPEN_ROUTER_TOKEN}
+    volumes:
+      - chroma_data:/app/.chroma
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+volumes:
+  chroma_data:
+    driver: local
+
+networks:
+  default:
+    name: talent_scout_network

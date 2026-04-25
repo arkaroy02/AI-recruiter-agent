@@ -1,0 +1,112 @@
+[
+  {
+    "id": "c001",
+    "name": "Alice Chen",
+    "title": "Senior Full Stack Engineer",
+    "years_exp": 7,
+    "skills": ["Python", "React", "PostgreSQL", "AWS", "Docker", "GraphQL"],
+    "summary": "Passionate about scalable systems and clean code. Led backend team at fintech startup.",
+    "openness": "passive",
+    "current_company": "FinTech Innovations Inc",
+    "education": "BS Computer Science, Stanford"
+  },
+  {
+    "id": "c002",
+    "name": "Bob Rodriguez",
+    "title": "Backend Engineer",
+    "years_exp": 5,
+    "skills": ["Java", "Spring Boot", "Kubernetes", "Microservices", "AWS", "REST APIs"],
+    "summary": "Expert in distributed systems. Built payment processing pipelines at scale.",
+    "openness": "somewhat open",
+    "current_company": "PaymentCorp",
+    "education": "BS Information Systems, UC Berkeley"
+  },
+  {
+    "id": "c003",
+    "name": "Carol Martinez",
+    "title": "Data Engineer",
+    "years_exp": 4,
+    "skills": ["Python", "Spark", "SQL", "Airflow", "GCP", "dbt"],
+    "summary": "Data pipeline architect. Built real-time ETL systems for analytics platform.",
+    "openness": "very open",
+    "current_company": "Analytics Startup Co",
+    "education": "MS Data Science, MIT"
+  },
+  {
+    "id": "c004",
+    "name": "David Kim",
+    "title": "Frontend Engineer",
+    "years_exp": 6,
+    "skills": ["React", "TypeScript", "Vue", "CSS-in-JS", "WebGL", "Jest"],
+    "summary": "UI/UX enthusiast. Built performance-critical dashboards and visualization libraries.",
+    "openness": "passive",
+    "current_company": "Design Tech Studio",
+    "education": "BS Computer Engineering, Carnegie Mellon"
+  },
+  {
+    "id": "c005",
+    "name": "Emma Thompson",
+    "title": "DevOps Engineer",
+    "years_exp": 8,
+    "skills": ["Kubernetes", "Terraform", "CI/CD", "Linux", "Prometheus", "Helm"],
+    "summary": "Infrastructure automation specialist. Scaled systems for 10M+ users.",
+    "openness": "somewhat open",
+    "current_company": "CloudScale Systems",
+    "education": "BS Systems Administration, University of Washington"
+  },
+  {
+    "id": "c006",
+    "name": "Frank Dubois",
+    "title": "ML Engineer",
+    "years_exp": 5,
+    "skills": ["Python", "TensorFlow", "PyTorch", "Scikit-learn", "Data Science", "NLP"],
+    "summary": "Machine learning practitioner. Deployed recommendation systems and NLP models to production.",
+    "openness": "very open",
+    "current_company": "AI Research Lab",
+    "education": "MS Computer Science, UC Berkeley"
+  },
+  {
+    "id": "c007",
+    "name": "Grace Lee",
+    "title": "Senior Software Architect",
+    "years_exp": 12,
+    "skills": ["System Design", "Python", "Go", "Distributed Systems", "Leadership", "mentoring"],
+    "summary": "Technical leader with 12+ years building enterprise systems. Strong mentorship track record.",
+    "openness": "passive",
+    "current_company": "Enterprise Corp",
+    "education": "BS Computer Science, MIT"
+  },
+  {
+    "id": "c008",
+    "name": "Henry Wong",
+    "title": "Mid-Level Backend Engineer",
+    "years_exp": 3,
+    "skills": ["Python", "Django", "PostgreSQL", "Redis", "AWS", "RabbitMQ"],
+    "summary": "Eager learner building scalable web services. Quick adapter to new tech stacks.",
+    "openness": "very open",
+    "current_company": "Web Services Startup",
+    "education": "BS Computer Science, Georgia Tech"
+  },
+  {
+    "id": "c009",
+    "name": "Iris Nakamura",
+    "title": "Product Engineer",
+    "years_exp": 4,
+    "skills": ["TypeScript", "React", "Node.js", "Product Sense", "SQL", "A/B Testing"],
+    "summary": "Product-minded engineer obsessed with user experience and metrics.",
+    "openness": "somewhat open",
+    "current_company": "SaaS Products Inc",
+    "education": "BS Electrical Engineering, Carnegie Mellon"
+  },
+  {
+    "id": "c010",
+    "name": "Jack Morrison",
+    "title": "Platform Engineer",
+    "years_exp": 6,
+    "skills": ["Go", "Rust", "Kubernetes", "etcd", "observability", "Performance tuning"],
+    "summary": "Low-level systems programmer. Built SDKs and platform infrastructure.",
+    "openness": "passive",
+    "current_company": "Infrastructure Co",
+    "education": "BS Computer Science, University of Illinois"
+  }
+]

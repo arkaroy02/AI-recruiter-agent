@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # Ollama LLM Engine
+  ollama:
+    image: ollama/ollama:latest
+    container_name: talent_scout_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Pull required models
+  ollama_init:
+    image: ollama/ollama:latest
+    container_name: talent_scout_ollama_init
+    volumes:
+      - ollama_data:/root/.ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+        ollama pull tinyllama &&
+        ollama pull gemma2:2b &&
+        ollama pull nomic-embed-text:latest
+      "
+    restart: "no"
+
+  # Talent Scout Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: talent_scout_app
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_CHAT_MODEL=tinyllama:latest
+      - OLLAMA_INTERVIEW_MODEL=gemma2:2b
+      - OLLAMA_EMBED_MODEL=nomic-embed-text
+    volumes:
+      - ./data:/app/data
+      - ./tests:/app/tests
+      - ./webapp:/app/webapp
+      - chroma_data:/app/.chroma
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  ollama_data:
+    driver: local
+  chroma_data:
+    driver: local
+
+networks:
+  default:
+    name: talent_scout_network

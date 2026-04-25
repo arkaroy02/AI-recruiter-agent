@@ -755,7 +755,7 @@ async function uploadResumes() {
 
   setButtonsDisabled(true);
   setPendingAction("Extracting text from uploaded resumes and building candidate profiles...");
-  setStatus("Uploading and parsing resumes. This may take a bit on local hardware.", "running");
+  setStatus("Uploading and parsing resumes. This may take a bit.", "running");
   try {
     const formData = new FormData();
     for (const file of files) {

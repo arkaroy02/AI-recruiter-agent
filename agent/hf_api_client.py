@@ -25,9 +25,9 @@ OPENROUTER_RERANK_URL = "https://openrouter.ai/api/v1/rerank"
 # All models below are high quality with minimal cost
 CHAT_MODELS = {
     "default": "deepseek/deepseek-chat",  # $0.14/1M tokens - Excellent quality/price
-    "fast": "google/gemini-flash-1.5",  # $0.075/1M tokens - Fast & capable
+    "fast": "google/gemini-2.0-flash-001",  # $0.10/1M tokens - Fast & capable
     "quality": "anthropic/claude-3.5-sonnet",  # $3/1M tokens - Best quality
-    "interview": "google/gemini-flash-1.5",  # $0.075/1M tokens - Great for interviews
+    "interview": "google/gemini-2.0-flash-001",  # $0.10/1M tokens - Great for interviews
     "reasoning": "deepseek/deepseek-reasoner",  # $0.55/1M tokens - Deep reasoning
 }
 

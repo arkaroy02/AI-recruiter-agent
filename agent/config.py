@@ -16,7 +16,7 @@ OPENROUTER_API_KEY = os.getenv("OPEN_ROUTER_TOKEN") or os.getenv("HF_TOKEN", "")
 # Affordable, high-quality models (no rate limits like free tier)
 # Pricing: https://openrouter.ai/models
 HF_CHAT_MODEL = os.getenv("HF_CHAT_MODEL", "deepseek/deepseek-chat")  # $0.14/1M tokens
-HF_INTERVIEW_MODEL = os.getenv("HF_INTERVIEW_MODEL", "google/gemini-flash-1.5")  # $0.075/1M tokens
+HF_INTERVIEW_MODEL = os.getenv("HF_INTERVIEW_MODEL", "google/gemini-2.0-flash-001")  # $0.10/1M tokens
 HF_EMBED_MODEL = os.getenv("HF_EMBED_MODEL", "local")
 
 # ===== Legacy Compatibility =====

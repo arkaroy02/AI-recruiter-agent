@@ -417,6 +417,20 @@ async def shortlist_send_email(payload: ShortlistEmailRequest) -> Dict:
     }
 
 
+@app.get("/api/debug/env")
+async def debug_env() -> Dict:
+    """Debug endpoint to check if environment variables are loaded (for troubleshooting)."""
+    return {
+        "smtp_host": os.getenv("SMTP_HOST", "NOT_SET"),
+        "smtp_port": os.getenv("SMTP_PORT", "NOT_SET"),
+        "smtp_user": os.getenv("SMTP_USER", "NOT_SET"),
+        "smtp_password": "SET" if os.getenv("SMTP_PASSWORD") else "NOT_SET",
+        "from_email": os.getenv("FROM_EMAIL", "NOT_SET"),
+        "base_url": os.getenv("BASE_URL", "NOT_SET"),
+        "open_router_token": "SET" if os.getenv("OPEN_ROUTER_TOKEN") else "NOT_SET",
+    }
+
+
 @app.get("/interview/{token}", response_class=HTMLResponse)
 async def interview_portal(request: Request, token: str):
     """Render the interview portal page for candidates."""

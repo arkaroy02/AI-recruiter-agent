@@ -127,6 +127,20 @@ def generate_recruiter_question(jd_parsed: Dict, conversation: List[Dict], candi
     candidate_name = (candidate or {}).get("name", "the candidate")
     candidate_title = (candidate or {}).get("title", "their current role")
     required_skills = ", ".join(jd_parsed.get("required_skills", [])[:6]) or "the core skills for this role"
+    
+    # Extract already asked questions to avoid repetition
+    asked_questions = []
+    for msg in conversation:
+        if msg.get("speaker") == "recruiter":
+            text = msg.get("text", "")
+            # Extract key topics from previous recruiter messages
+            if "?" in text:
+                asked_questions.append(text)
+    
+    previous_topics = ""
+    if asked_questions:
+        previous_topics = f"\n\nQuestions already asked (DO NOT repeat these):\n" + "\n".join([f"- {q[:100]}..." for q in asked_questions[-3:]])
+    
     prompt = f"""
 You are a warm, emotionally intelligent recruiter interviewing a real human candidate live.
 
@@ -138,6 +152,7 @@ Hiring context:
 Candidate context:
 - Name: {candidate_name}
 - Current title: {candidate_title}
+{previous_topics}
 
 Interview style rules:
 - Sound like a thoughtful human interviewer, not a bot.
@@ -146,12 +161,20 @@ Interview style rules:
 - For the first turn, briefly welcome the candidate before the first question.
 - After the candidate answers, briefly acknowledge something specific they said, then ask the next question.
 - Focus on experience, problem-solving, motivations, availability, and fit for the role.
-- Avoid repeating earlier questions or listing multiple questions together.
+- CRITICAL: NEVER repeat or rephrase questions that were already asked. Move to a NEW topic.
 - If you already have enough information after a few turns, write a short warm wrap-up and include RECRUITER_DONE.
 - You are the recruiter only.
 - Never answer on behalf of the candidate.
 - Never say things like "I worked", "my background", or "I am interested" unless quoting the candidate.
 - Your reply should almost always end with a question mark unless you are wrapping up with RECRUITER_DONE.
+
+Interview progression (ask about each topic ONCE):
+1. Welcome & current role/situation
+2. Experience with required skills
+3. Motivation for this role
+4. Availability & notice period
+5. Salary expectations (if appropriate)
+6. Wrap-up with RECRUITER_DONE
 """
     messages = [{"role": "system", "content": prompt}]
     for message in conversation:

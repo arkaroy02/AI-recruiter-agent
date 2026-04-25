@@ -23,10 +23,10 @@ OPENROUTER_RERANK_URL = "https://openrouter.ai/api/v1/rerank"
 # Best models available on OpenRouter (free + paid tiers)
 # See all models at: https://openrouter.ai/models
 CHAT_MODELS = {
-    "default": "meta-llama/llama-3.3-70b-instruct",  # Better quality, more capable
-    "fast": "meta-llama/llama-3.3-70b-instruct",  # Same as default
+    "default": "meta-llama/llama-3.3-70b-instruct:free",  # Free tier
+    "fast": "meta-llama/llama-3.3-70b-instruct:free",  # Same as default
     "quality": "anthropic/claude-3.5-sonnet",  # Best quality (paid)
-    "interview": "meta-llama/llama-3.3-70b-instruct",  # Better interview conversations
+    "interview": "meta-llama/llama-3.3-70b-instruct:free",  # Free tier for interviews
     "reasoning": "openai/gpt-4o-mini",  # Good reasoning (paid)
 }
 

@@ -13,8 +13,9 @@ load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPEN_ROUTER_TOKEN") or os.getenv("HF_TOKEN", "")
 
 # Model configuration for OpenRouter
-HF_CHAT_MODEL = os.getenv("HF_CHAT_MODEL", "meta-llama/llama-3.3-70b-instruct")
-HF_INTERVIEW_MODEL = os.getenv("HF_INTERVIEW_MODEL", "meta-llama/llama-3.3-70b-instruct")
+# Use :free suffix for free tier models
+HF_CHAT_MODEL = os.getenv("HF_CHAT_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
+HF_INTERVIEW_MODEL = os.getenv("HF_INTERVIEW_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
 HF_EMBED_MODEL = os.getenv("HF_EMBED_MODEL", "local")
 
 # ===== Legacy Compatibility =====

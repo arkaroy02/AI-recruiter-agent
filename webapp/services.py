@@ -128,68 +128,81 @@ def generate_recruiter_question(jd_parsed: Dict, conversation: List[Dict], candi
     candidate_title = (candidate or {}).get("title", "their current role")
     required_skills = ", ".join(jd_parsed.get("required_skills", [])[:6]) or "the core skills for this role"
     
-    # Extract already asked questions to avoid repetition
-    asked_questions = []
+    # Count turns and extract covered topics
+    turn_count = count_candidate_turns(conversation)
+    
+    # Build conversation history with clear speaker labels
+    history_lines = []
     for msg in conversation:
-        if msg.get("speaker") == "recruiter":
-            text = msg.get("text", "")
-            # Extract key topics from previous recruiter messages
-            if "?" in text:
-                asked_questions.append(text)
+        speaker = "RECRUITER" if msg.get("speaker") == "recruiter" else "CANDIDATE"
+        text = clean_done_tokens(msg.get("text", ""))
+        history_lines.append(f"{speaker}: {text}")
+    conversation_history = "\n".join(history_lines)
     
-    previous_topics = ""
-    if asked_questions:
-        previous_topics = f"\n\nQuestions already asked (DO NOT repeat these):\n" + "\n".join([f"- {q[:100]}..." for q in asked_questions[-3:]])
+    # Determine what topics have been covered based on conversation content
+    covered_topics = []
+    history_lower = conversation_history.lower()
+    if any(word in history_lower for word in ["welcome", "glad", "thanks for joining", "pleasure"]):
+        covered_topics.append("welcome/greeting")
+    if any(word in history_lower for word in ["current role", "currently doing", "your role", "position"]):
+        covered_topics.append("current role")
+    if any(word in history_lower for word in ["experience", "worked with", "years", "background in"]):
+        covered_topics.append("experience")
+    if any(word in history_lower for word in ["why", "interested", "attracted", "motivated", "this role"]):
+        covered_topics.append("motivation")
+    if any(word in history_lower for word in ["available", "availability", "notice", "start", "when can"]):
+        covered_topics.append("availability")
+    if any(word in history_lower for word in ["salary", "compensation", "expectation", "pay"]):
+        covered_topics.append("salary")
     
-    prompt = f"""
-You are a warm, emotionally intelligent recruiter interviewing a real human candidate live.
+    covered_topics_str = ", ".join(covered_topics) if covered_topics else "None yet"
+    
+    # Determine next topic to ask about
+    next_topic_hints = []
+    if "welcome/greeting" not in covered_topics and turn_count == 0:
+        next_topic_hints.append("Start with a warm welcome and ask about their current situation")
+    if "experience" not in covered_topics and turn_count >= 1:
+        next_topic_hints.append("Ask about their experience with the required skills")
+    if "motivation" not in covered_topics and turn_count >= 2:
+        next_topic_hints.append("Ask why they're interested in this specific role")
+    if "availability" not in covered_topics and turn_count >= 3:
+        next_topic_hints.append("Ask about their availability or notice period")
+    if turn_count >= 4:
+        next_topic_hints.append("Wrap up the interview with RECRUITER_DONE")
+    
+    next_topic = next_topic_hints[0] if next_topic_hints else "Continue naturally"
+    
+    prompt = f"""You are a recruiter conducting a live interview. You MUST NOT repeat questions.
 
-Hiring context:
+INTERVIEW CONTEXT:
+- Candidate: {candidate_name} ({candidate_title})
 - Role: {jd_parsed.get("role", "this role")}
-- Seniority: {jd_parsed.get("seniority", "not specified")}
-- Key skills: {required_skills}
+- Required Skills: {required_skills}
+- Turn Number: {turn_count + 1}
 
-Candidate context:
-- Name: {candidate_name}
-- Current title: {candidate_title}
-{previous_topics}
+TOPICS ALREADY COVERED: {covered_topics_str}
 
-Interview style rules:
-- Sound like a thoughtful human interviewer, not a bot.
-- Ask exactly one question at a time.
-- Keep it concise: usually 1 to 2 sentences.
-- For the first turn, briefly welcome the candidate before the first question.
-- After the candidate answers, briefly acknowledge something specific they said, then ask the next question.
-- Focus on experience, problem-solving, motivations, availability, and fit for the role.
-- CRITICAL: NEVER repeat or rephrase questions that were already asked. Move to a NEW topic.
-- If you already have enough information after a few turns, write a short warm wrap-up and include RECRUITER_DONE.
-- You are the recruiter only.
-- Never answer on behalf of the candidate.
-- Never say things like "I worked", "my background", or "I am interested" unless quoting the candidate.
-- Your reply should almost always end with a question mark unless you are wrapping up with RECRUITER_DONE.
+NEXT TOPIC TO ASK ABOUT: {next_topic}
 
-Interview progression (ask about each topic ONCE):
-1. Welcome & current role/situation
-2. Experience with required skills
-3. Motivation for this role
-4. Availability & notice period
-5. Salary expectations (if appropriate)
-6. Wrap-up with RECRUITER_DONE
-"""
-    messages = [{"role": "system", "content": prompt}]
-    for message in conversation:
-        role = "assistant" if message.get("speaker") == "recruiter" else "user"
-        messages.append({"role": role, "content": message.get("text", "")})
+CRITICAL RULES:
+1. Read the conversation history below carefully
+2. NEVER ask about topics already covered
+3. Ask exactly ONE question per turn
+4. Keep responses to 1-2 sentences
+5. Acknowledge the candidate's last answer briefly, then ask your next question
+6. After 4-5 candidate turns, wrap up with "RECRUITER_DONE"
+7. Do NOT repeat any question from the history
 
-    # Build full context for HF API
-    conversation_text = "\n".join([f"{m['role'].upper()}: {m['content']}" for m in messages])
-    full_prompt = f"{prompt}\n\nConversation so far:\n{conversation_text}"
-    
-    content = generate_text(full_prompt, max_length=300)
+CONVERSATION HISTORY:
+{conversation_history if conversation_history else "(This is the first turn - welcome the candidate)"}
+
+YOUR RESPONSE (as the recruiter):"""
+
+    content = generate_text(prompt, model="interview", max_length=300, temperature=0.8)
 
     if _looks_like_candidate_answer(content):
-        retry_prompt = f"{prompt}\n\nThat response sounded like the candidate speaking. Rewrite it as the recruiter only. Ask exactly one concise interviewer question.\n\nConversation:\n{conversation_text}\nLast response:\n{content}"
-        content = generate_text(retry_prompt, max_length=300)
+        retry_prompt = f"{prompt}\n\nIMPORTANT: Your last response sounded like the candidate speaking. You are the RECRUITER. Ask a question TO the candidate. Try again:"
+        content = generate_text(retry_prompt, model="interview", max_length=300)
 
     return content
 
@@ -201,9 +214,18 @@ def _clean_resume_text(text: str) -> str:
 
 
 def _guess_name_from_filename(filename: str) -> str:
+    """Extract a clean name from filename, removing numbers, parentheses, and special chars."""
     stem = Path(filename or "Candidate").stem
+    # Remove numbers in parentheses like (1), (7), etc.
+    stem = re.sub(r"\(\d+\)", "", stem)
+    # Remove other numbers
+    stem = re.sub(r"\d+", "", stem)
+    # Replace underscores and hyphens with spaces
     stem = re.sub(r"[_\-]+", " ", stem).strip()
-    words = [word.capitalize() for word in stem.split() if word]
+    # Remove common file naming patterns
+    stem = re.sub(r"\b(cv|resume|curriculum vitae)\b", "", stem, flags=re.IGNORECASE).strip()
+    # Capitalize words
+    words = [word.capitalize() for word in stem.split() if word and len(word) > 1]
     return " ".join(words[:4]) or "Candidate"
 
 

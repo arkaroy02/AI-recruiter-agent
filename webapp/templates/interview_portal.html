@@ -212,9 +212,11 @@
 
   <div class="interview-portal">
     <div id="loadingView">
-      <div class="interview-section" style="text-align: center; padding: 60px;">
-        <div class="loading-spinner" style="width: 40px; height: 40px; border-width: 4px;"></div>
-        <p style="margin-top: 20px; color: var(--text-secondary);">Loading your interview...</p>
+      <div class="welcome-card">
+        <h1>🎯 Starting Your AI Interview...</h1>
+        <p class="subtitle">You'll be connected with our AI interview bot</p>
+        <div class="loading-spinner" style="width: 40px; height: 40px; border-width: 4px; margin-top: 20px;"></div>
+        <p style="margin-top: 15px; opacity: 0.9; font-size: 0.95rem;">This will work best on your mobile phone</p>
       </div>
     </div>
 
@@ -225,71 +227,11 @@
         <p style="margin-top: 15px; color: #666;">Please contact the recruiter for a new link.</p>
       </div>
     </div>
-
-    <div id="interviewView" style="display: none;">
-      <div class="welcome-card">
-        <h1>🎉 Welcome, <span id="candidateNameDisplay">Candidate</span>!</h1>
-        <p class="subtitle">You've been shortlisted for an interview</p>
-        <span id="statusBadge" class="status-badge pending">Pending</span>
-      </div>
-
-      <div id="timerWarning" class="timer-warning" style="display: none;">
-        <strong>⏰ Time Sensitive:</strong> This interview link expires soon. Please complete your responses.
-      </div>
-
-      <div id="completedView" style="display: none;">
-        <div class="completed-card">
-          <h2>✅ Interview Completed!</h2>
-          <p>Thank you for completing your interview. Our team will review your responses and get back to you shortly.</p>
-          <p style="margin-top: 20px; opacity: 0.9;">You may close this window.</p>
-        </div>
-      </div>
-
-      <div id="questionsView">
-        <div class="interview-section">
-          <h2>📝 Interview Questions</h2>
-          <p style="color: var(--text-secondary); margin-bottom: 20px;">
-            Please answer the following questions to help us understand your experience and interests.
-          </p>
-          
-          <div class="progress-bar">
-            <div id="progressFill" class="progress-fill" style="width: 0%"></div>
-          </div>
-          <p id="progressText" class="small muted" style="margin-bottom: 25px;">0 of 0 questions answered</p>
-
-          <div id="questionsContainer"></div>
-          
-          <div style="text-align: center; margin-top: 30px;">
-            <button id="submitAllBtn" class="submit-btn" onclick="submitAllAnswers()">
-              Submit All Answers
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div id="answerHistory" class="answer-history" style="display: none;">
-        <div class="interview-section">
-          <h2>📋 Your Responses</h2>
-          <div id="answerHistoryList"></div>
-        </div>
-      </div>
-    </div>
   </div>
 
   <script>
     let meetingToken = null;
     let meetingData = null;
-    let questions = [];
-    let answers = {};
-
-    // Sample interview questions (in production, these would come from the JD/candidate matching)
-    const defaultQuestions = [
-      "Tell us about yourself and your professional background.",
-      "What interests you most about this role and why do you think you'd be a good fit?",
-      "Describe a challenging project you worked on and how you overcame obstacles.",
-      "What are your salary expectations and availability to start?",
-      "Do you have any questions for us about the role or company?"
-    ];
 
     async function init() {
       // Extract token from URL
@@ -311,155 +253,36 @@
         }
 
         meetingData = data.meeting;
-        questions = data.questions || defaultQuestions;
         
-        // Load any existing answers
-        if (meetingData.interview_answers && meetingData.interview_answers.length > 0) {
-          meetingData.interview_answers.forEach(item => {
-            answers[item.question] = item.answer;
-          });
-        }
-
-        showInterview();
+        // Mark as joined
+        await fetch(`/api/interview/join/${meetingToken}`, { method: 'POST' });
+        
+        // Redirect to interview studio with the meeting data
+        redirectToInterviewStudio(data);
       } catch (error) {
         console.error('Error validating token:', error);
         showError();
       }
     }
 
+    function redirectToInterviewStudio(meetingData) {
+      // Extract run_id and candidate name from meeting data
+      const run_id = meetingData.meeting.run_id;
+      const candidate_name = meetingData.meeting.candidate_name;
+      
+      // Store meeting data in sessionStorage for the interview studio
+      sessionStorage.setItem('meeting_token', meetingToken);
+      sessionStorage.setItem('meeting_run_id', run_id);
+      sessionStorage.setItem('meeting_candidate_name', candidate_name);
+      
+      // Redirect to main app with interview studio
+      // The interview studio will read from sessionStorage and start the interview
+      window.location.href = `/`;
+    }
+
     function showError() {
       document.getElementById('loadingView').style.display = 'none';
       document.getElementById('errorView').style.display = 'block';
-    }
-
-    function showInterview() {
-      document.getElementById('loadingView').style.display = 'none';
-      document.getElementById('interviewView').style.display = 'block';
-      
-      // Update UI
-      document.getElementById('candidateNameDisplay').textContent = meetingData.candidate_name;
-      
-      const statusBadge = document.getElementById('statusBadge');
-      statusBadge.textContent = meetingData.status.charAt(0).toUpperCase() + meetingData.status.slice(1);
-      statusBadge.className = 'status-badge ' + meetingData.status;
-
-      // Check if already completed
-      if (meetingData.status === 'completed') {
-        showCompleted();
-        return;
-      }
-
-      // Check expiry warning
-      const expiresAt = new Date(meetingData.expires_at);
-      const now = new Date();
-      const hoursLeft = (expiresAt - now) / (1000 * 60 * 60);
-      
-      if (hoursLeft < 6) {
-        document.getElementById('timerWarning').style.display = 'block';
-      }
-
-      // Render questions
-      renderQuestions();
-      updateProgress();
-
-      // Mark as joined
-      markAsJoined();
-    }
-
-    function renderQuestions() {
-      const container = document.getElementById('questionsContainer');
-      container.innerHTML = '';
-
-      questions.forEach((question, index) => {
-        const card = document.createElement('div');
-        card.className = 'question-card';
-        card.innerHTML = `
-          <div class="question-number">Question ${index + 1} of ${questions.length}</div>
-          <div class="question-text">${question}</div>
-          <textarea 
-            class="answer-textarea" 
-            id="answer-${index}"
-            placeholder="Type your answer here..."
-            onchange="saveAnswer(${index}, this.value)"
-          >${answers[question] || ''}</textarea>
-        `;
-        container.appendChild(card);
-      });
-    }
-
-    function saveAnswer(index, value) {
-      answers[questions[index]] = value;
-      updateProgress();
-    }
-
-    function updateProgress() {
-      const answered = Object.values(answers).filter(a => a && a.trim()).length;
-      const total = questions.length;
-      const percent = total > 0 ? (answered / total) * 100 : 0;
-
-      document.getElementById('progressFill').style.width = percent + '%';
-      document.getElementById('progressText').textContent = `${answered} of ${total} questions answered`;
-    }
-
-    async function markAsJoined() {
-      try {
-        await fetch(`/api/interview/join/${meetingToken}`, { method: 'POST' });
-      } catch (error) {
-        console.error('Error marking as joined:', error);
-      }
-    }
-
-    async function submitAllAnswers() {
-      const btn = document.getElementById('submitAllBtn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="loading-spinner"></span> Submitting...';
-
-      try {
-        const response = await fetch(`/api/interview/submit/${meetingToken}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answers: answers })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          showCompleted();
-        } else {
-          alert('Error submitting answers: ' + data.message);
-          btn.disabled = false;
-          btn.textContent = 'Submit All Answers';
-        }
-      } catch (error) {
-        console.error('Error submitting:', error);
-        alert('Error submitting answers. Please try again.');
-        btn.disabled = false;
-        btn.textContent = 'Submit All Answers';
-      }
-    }
-
-    function showCompleted() {
-      document.getElementById('questionsView').style.display = 'none';
-      document.getElementById('completedView').style.display = 'block';
-      document.getElementById('statusBadge').textContent = 'Completed';
-      document.getElementById('statusBadge').className = 'status-badge completed';
-
-      // Show answer history
-      if (Object.keys(answers).length > 0) {
-        document.getElementById('answerHistory').style.display = 'block';
-        const historyList = document.getElementById('answerHistoryList');
-        historyList.innerHTML = '';
-        
-        Object.entries(answers).forEach(([question, answer]) => {
-          const item = document.createElement('div');
-          item.className = 'answer-item';
-          item.innerHTML = `
-            <div class="q">${question}</div>
-            <div class="a">${answer || 'No answer provided'}</div>
-          `;
-          historyList.appendChild(item);
-        });
-      }
     }
 
     // Initialize on page load

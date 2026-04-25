@@ -1183,6 +1183,60 @@ function init() {
   loadHealth();
   loadCandidateSource();
   clearState();
+  
+  // Check if this is a meeting portal redirect
+  checkAndHandleMeetingPortalRedirect();
+}
+
+/**
+ * Check if redirected from meeting portal and auto-start interview in real mode
+ */
+async function checkAndHandleMeetingPortalRedirect() {
+  const meetingToken = sessionStorage.getItem("meeting_token");
+  const meetingRunId = sessionStorage.getItem("meeting_run_id");
+  const meetingCandidateName = sessionStorage.getItem("meeting_candidate_name");
+  
+  if (!meetingToken || !meetingRunId || !meetingCandidateName) {
+    return; // Not a meeting portal redirect
+  }
+  
+  // Clear session storage to avoid re-triggering
+  sessionStorage.removeItem("meeting_token");
+  sessionStorage.removeItem("meeting_run_id");
+  sessionStorage.removeItem("meeting_candidate_name");
+  
+  try {
+    // Load the run results for this candidate
+    const runData = await api(`/api/runs/${meetingRunId}`);
+    
+    // Set state for this interview
+    state.runId = meetingRunId;
+    state.results = runData.results;
+    state.mode = "real"; // Force real mode for meeting portal
+    state.selectedCandidate = meetingCandidateName;
+    
+    // Switch to interview workspace
+    state.activeWorkspace = "interview";
+    
+    // Render the UI
+    renderAll();
+    
+    // Auto-start the interview
+    setStatus("🤖 Starting your AI interview...", "running");
+    await startInterview();
+    
+    // Auto-enable live mode (voice interview)
+    if (state.browserSpeechSupported && state.browserRecognitionSupported) {
+      setTimeout(() => {
+        state.liveMode = true;
+        renderAll();
+        speakLatestQuestion();
+      }, 1000);
+    }
+  } catch (error) {
+    console.error("Error setting up meeting portal interview:", error);
+    setStatus(`Error: ${error.message}`, "error");
+  }
 }
 
 init();

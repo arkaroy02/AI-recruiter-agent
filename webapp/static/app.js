@@ -14,6 +14,7 @@ const state = {
   recognition: null,
   browserSpeechSupported: Boolean(window.speechSynthesis),
   browserRecognitionSupported: Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
+  meetings: {}, // Experimental: track meeting links sent to candidates
 };
 
 const el = {
@@ -330,6 +331,10 @@ function renderCandidateInsight() {
     ? `${candidate.name} has now been rescored with live interview feedback. Combined score is ${Number(candidate.combined_score || 0).toFixed(1)} with match ${Number(candidate.match_score || 0).toFixed(1)} and interest ${Number(candidate.interest_score || 0).toFixed(1)}.`
     : `${candidate.name} is shortlisted mainly on profile fit right now. Interview signals will make this recommendation sharper once the conversation is complete.`;
 
+  // Check if email already sent for this candidate
+  const meetingInfo = state.meetings?.[candidate.name];
+  const emailSent = meetingInfo?.status === "pending" || meetingInfo?.status === "joined" || meetingInfo?.status === "completed";
+
   el.candidateInsightPanel.innerHTML = `
     <div class="candidate-insight-head">
       <div>
@@ -357,6 +362,27 @@ function renderCandidateInsight() {
           <li>Education: ${escapeHtml(candidate.education || "Not provided")}</li>
         </ul>
       </div>
+    </div>
+    <div class="insight-block" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+      <h5>📧 Interview Portal (Experimental)</h5>
+      <div id="emailSection">
+        ${emailSent ? `
+          <div class="email-status">
+            <span class="badge ${meetingInfo.status === 'completed' ? 'active' : 'waiting'}">${meetingInfo.status.charAt(0).toUpperCase() + meetingInfo.status.slice(1)}</span>
+            <p class="small muted" style="margin-top: 8px;">
+              Meeting link sent to: ${escapeHtml(meetingInfo.email || 'N/A')}<br>
+              <a href="/interview/${meetingInfo.token}" target="_blank" class="small">View Interview Portal →</a>
+            </p>
+          </div>
+        ` : `
+          <p class="small muted">Send a meeting link to this candidate for self-paced interview.</p>
+          <div class="control-row" style="margin-top: 10px;">
+            <input type="email" id="candidateEmailInput" placeholder="candidate@email.com" value="" style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary);">
+            <button id="sendEmailBtn" class="btn btn-primary" onclick="sendMeetingEmail('${escapeHtml(candidate.name || "")}')">Send Meeting Link</button>
+          </div>
+        `}
+      </div>
+      <div id="emailStatus" class="small muted" style="margin-top: 10px;"></div>
     </div>
   `;
   el.candidateInsightPanel.classList.remove("hidden");
@@ -574,6 +600,8 @@ function setRunResults(runId, results) {
   state.sessions = {};
   state.selectedCandidate = null;
   state.activeWorkspace = "results";
+  state.meetings = {}; // Reset meetings for new run
+  loadMeetings(); // Load any existing meetings for this run
   renderAll();
 }
 
@@ -1056,6 +1084,97 @@ function wireEvents() {
 
   if (window.speechSynthesis?.onvoiceschanged !== undefined) {
     window.speechSynthesis.onvoiceschanged = () => renderAll();
+  }
+}
+
+// ============================================================================
+// EXPERIMENTAL: Meeting Link & Interview Portal Functions
+// ============================================================================
+
+async function sendMeetingEmail(candidateName) {
+  if (!state.runId) {
+    alert("Please run the pipeline first.");
+    return;
+  }
+
+  const emailInput = document.getElementById("candidateEmailInput");
+  const email = emailInput?.value?.trim();
+
+  if (!email) {
+    alert("Please enter a candidate email address.");
+    return;
+  }
+
+  const statusEl = document.getElementById("emailStatus");
+  if (statusEl) {
+    statusEl.textContent = "Sending meeting link...";
+    statusEl.style.color = "var(--text-secondary)";
+  }
+
+  try {
+    const response = await api("/api/shortlist/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        run_id: state.runId,
+        candidate_name: candidateName,
+        candidate_email: email,
+        company_name: "Talent Scout Studio"
+      })
+    });
+
+    if (response.success) {
+      // Update state with meeting info
+      if (!state.meetings) state.meetings = {};
+      state.meetings[candidateName] = {
+        token: response.token,
+        email: email,
+        status: "pending",
+        meeting_link: response.meeting_link
+      };
+
+      // Show success message
+      if (statusEl) {
+        if (response.simulated) {
+          statusEl.innerHTML = `
+            <span style="color: #f59e0b;">⚠️ Email simulated (no SMTP configured)</span><br>
+            <a href="${response.meeting_link}" target="_blank">Open Interview Portal →</a>
+          `;
+        } else {
+          statusEl.innerHTML = `
+            <span style="color: #10b981;">✅ Email sent successfully!</span><br>
+            <a href="${response.meeting_link}" target="_blank">Open Interview Portal →</a>
+          `;
+        }
+      }
+
+      // Re-render to show updated status
+      renderCandidateInsight();
+    } else {
+      if (statusEl) {
+        statusEl.textContent = response.message || "Failed to send email.";
+        statusEl.style.color = "#ef4444";
+      }
+    }
+  } catch (error) {
+    console.error("Error sending email:", error);
+    if (statusEl) {
+      statusEl.textContent = `Error: ${error.message}`;
+      statusEl.style.color = "#ef4444";
+    }
+  }
+}
+
+async function loadMeetings() {
+  if (!state.runId) return;
+
+  try {
+    const response = await api(`/api/meetings/${state.runId}`);
+    if (response.meetings) {
+      state.meetings = response.meetings;
+    }
+  } catch (error) {
+    console.error("Error loading meetings:", error);
   }
 }
 

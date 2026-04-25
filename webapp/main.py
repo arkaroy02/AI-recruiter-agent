@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 import sys
 from typing import Dict, List, Literal
@@ -335,3 +336,211 @@ async def interview_transcribe(
         raise HTTPException(status_code=400, detail=error)
 
     return {"text": transcript}
+
+
+# ============================================================================
+# EXPERIMENTAL: Interview Portal & Email Meeting Links
+# ============================================================================
+from webapp.email_service import (
+    generate_meeting_token,
+    validate_meeting_token,
+    get_meeting_by_token,
+    update_meeting_status,
+    add_interview_answer,
+    send_meeting_email,
+)
+
+
+class ShortlistEmailRequest(BaseModel):
+    run_id: str
+    candidate_name: str
+    candidate_email: str
+    company_name: str = "Talent Scout Studio"
+
+
+class SubmitAnswersRequest(BaseModel):
+    token: str
+    answers: Dict[str, str]
+
+
+@app.post("/api/shortlist/send-email")
+async def shortlist_send_email(payload: ShortlistEmailRequest) -> Dict:
+    """
+    Send a meeting link email to a shortlisted candidate.
+    Experimental feature for interview portal access.
+    """
+    run = get_run_or_404(payload.run_id)
+    results = run.get("results", {})
+    
+    # Find the candidate
+    candidates = results.get("ranked_candidates", results.get("candidates", []))
+    candidate = None
+    for c in candidates:
+        if c.get("name") == payload.candidate_name:
+            candidate = c
+            break
+    
+    if not candidate:
+        raise HTTPException(status_code=404, detail=f"Candidate not found: {payload.candidate_name}")
+    
+    # Generate meeting token
+    meeting_token = generate_meeting_token(payload.run_id, payload.candidate_name)
+    
+    # Send email
+    base_url = os.getenv("BASE_URL", "http://localhost:8000")
+    email_result = send_meeting_email(
+        candidate_email=payload.candidate_email,
+        candidate_name=payload.candidate_name,
+        meeting_token=meeting_token,
+        company_name=payload.company_name,
+        base_url=base_url
+    )
+    
+    # Store meeting info in run
+    if "meetings" not in run:
+        run["meetings"] = {}
+    run["meetings"][payload.candidate_name] = {
+        "token": meeting_token,
+        "email": payload.candidate_email,
+        "sent_at": now_iso(),
+        "status": "pending",
+        "email_result": email_result
+    }
+    
+    return {
+        "success": email_result.get("success", False),
+        "simulated": email_result.get("simulated", True),
+        "message": email_result.get("message", ""),
+        "meeting_link": email_result.get("meeting_link", ""),
+        "token": meeting_token,
+        "candidate_name": payload.candidate_name
+    }
+
+
+@app.get("/interview/{token}", response_class=HTMLResponse)
+async def interview_portal(request: Request, token: str):
+    """Render the interview portal page for candidates."""
+    return templates.TemplateResponse(
+        request=request,
+        name="interview_portal.html",
+        context={"token": token}
+    )
+
+
+@app.get("/api/interview/validate/{token}")
+async def validate_interview_token(token: str) -> Dict:
+    """Validate meeting token and return interview details."""
+    meeting = validate_meeting_token(token)
+    
+    if not meeting:
+        return {"valid": False, "error": "Invalid or expired token"}
+    
+    # Get candidate info from run
+    run = RUN_STORE.get(meeting["run_id"])
+    candidate_info = {}
+    if run:
+        results = run.get("results", {})
+        candidates = results.get("ranked_candidates", results.get("candidates", []))
+        for c in candidates:
+            if c.get("name") == meeting["candidate_name"]:
+                candidate_info = c
+                break
+    
+    # Generate interview questions based on JD
+    questions = [
+        "Tell us about yourself and your professional background.",
+        "What interests you most about this role and why do you think you'd be a good fit?",
+        "Describe a challenging project you worked on and how you overcame obstacles.",
+        "What are your salary expectations and availability to start?",
+        "Do you have any questions for us about the role or company?"
+    ]
+    
+    # If we have JD info, customize questions
+    if run and run.get("results", {}).get("jd_parsed"):
+        jd = run["results"]["jd_parsed"]
+        role = jd.get("role", "this role")
+        skills = jd.get("required_skills", [])
+        
+        questions = [
+            f"Tell us about yourself and why you're interested in the {role} position.",
+            f"How does your experience align with the requirements for the {role} role?",
+            f"Describe your experience with {', '.join(skills[:3]) if skills else 'relevant technologies'}.",
+            "Walk us through a challenging project you worked on and your contributions.",
+            "What are your salary expectations and when would you be available to start?",
+            "Do you have any questions about the role or our company?"
+        ]
+    
+    return {
+        "valid": True,
+        "meeting": meeting,
+        "candidate": candidate_info,
+        "questions": questions
+    }
+
+
+@app.post("/api/interview/join/{token}")
+async def join_interview(token: str) -> Dict:
+    """Mark candidate as having joined the interview."""
+    meeting = get_meeting_by_token(token)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    
+    update_meeting_status(token, "joined", joined_at=now_iso())
+    
+    return {
+        "success": True,
+        "status": "joined",
+        "joined_at": now_iso()
+    }
+
+
+@app.post("/api/interview/submit/{token}")
+async def submit_interview_answers(token: str, payload: SubmitAnswersRequest) -> Dict:
+    """Submit interview answers from candidate."""
+    meeting = validate_meeting_token(token)
+    if not meeting:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    
+    # Save each answer
+    for question, answer in payload.answers.items():
+        if answer and answer.strip():
+            add_interview_answer(token, question, answer.strip())
+    
+    # Mark as completed
+    update_meeting_status(token, "completed")
+    
+    # Update run store
+    run = RUN_STORE.get(meeting["run_id"])
+    if run and "meetings" in run and meeting["candidate_name"] in run["meetings"]:
+        run["meetings"][meeting["candidate_name"]]["status"] = "completed"
+        run["meetings"][meeting["candidate_name"]]["completed_at"] = now_iso()
+    
+    return {
+        "success": True,
+        "message": "Interview submitted successfully",
+        "answers_count": len(payload.answers)
+    }
+
+
+@app.get("/api/meetings/{run_id}")
+async def get_meetings_for_run(run_id: str) -> Dict:
+    """Get all meeting statuses for a run."""
+    run = get_run_or_404(run_id)
+    meetings = run.get("meetings", {})
+    
+    return {
+        "run_id": run_id,
+        "meetings": meetings
+    }
+
+
+@app.get("/api/meeting/{token}")
+async def get_meeting_status(token: str) -> Dict:
+    """Get meeting status by token."""
+    meeting = get_meeting_by_token(token)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    
+    return {
+        "meeting": meeting
+    }

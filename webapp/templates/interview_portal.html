@@ -270,14 +270,21 @@
       const run_id = meetingData.meeting.run_id;
       const candidate_name = meetingData.meeting.candidate_name;
       
-      // Store meeting data in sessionStorage for the interview studio
-      sessionStorage.setItem('meeting_token', meetingToken);
-      sessionStorage.setItem('meeting_run_id', run_id);
-      sessionStorage.setItem('meeting_candidate_name', candidate_name);
+      // Store meeting data in localStorage (more reliable than sessionStorage across redirects)
+      localStorage.setItem('meeting_token', meetingToken);
+      localStorage.setItem('meeting_run_id', run_id);
+      localStorage.setItem('meeting_candidate_name', candidate_name);
+      localStorage.setItem('interview_mode', 'meeting_portal');
+      
+      console.log('Meeting portal: Stored data and redirecting to interview studio', {
+        token: meetingToken,
+        run_id: run_id,
+        candidate_name: candidate_name
+      });
       
       // Redirect to main app with interview studio
-      // The interview studio will read from sessionStorage and start the interview
-      window.location.href = `/`;
+      // Add a query parameter to force reload if needed
+      window.location.href = `/?meeting_portal=true`;
     }
 
     function showError() {

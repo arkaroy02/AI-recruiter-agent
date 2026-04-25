@@ -1192,22 +1192,36 @@ function init() {
  * Check if redirected from meeting portal and auto-start interview in real mode
  */
 async function checkAndHandleMeetingPortalRedirect() {
-  const meetingToken = sessionStorage.getItem("meeting_token");
-  const meetingRunId = sessionStorage.getItem("meeting_run_id");
-  const meetingCandidateName = sessionStorage.getItem("meeting_candidate_name");
+  const meetingToken = localStorage.getItem("meeting_token");
+  const meetingRunId = localStorage.getItem("meeting_run_id");
+  const meetingCandidateName = localStorage.getItem("meeting_candidate_name");
+  const interviewMode = localStorage.getItem("interview_mode");
   
-  if (!meetingToken || !meetingRunId || !meetingCandidateName) {
+  if (!meetingToken || !meetingRunId || !meetingCandidateName || interviewMode !== 'meeting_portal') {
     return; // Not a meeting portal redirect
   }
   
-  // Clear session storage to avoid re-triggering
-  sessionStorage.removeItem("meeting_token");
-  sessionStorage.removeItem("meeting_run_id");
-  sessionStorage.removeItem("meeting_candidate_name");
+  console.log('Meeting portal: Detected and starting interview', {
+    token: meetingToken,
+    run_id: meetingRunId,
+    candidate_name: meetingCandidateName
+  });
+  
+  // Clear localStorage to avoid re-triggering
+  localStorage.removeItem("meeting_token");
+  localStorage.removeItem("meeting_run_id");
+  localStorage.removeItem("meeting_candidate_name");
+  localStorage.removeItem("interview_mode");
+  
+  // Add meeting portal class to body to hide UI chrome
+  document.body.classList.add('meeting-portal');
   
   try {
     // Load the run results for this candidate
+    console.log('Loading run data for:', meetingRunId);
     const runData = await api(`/api/runs/${meetingRunId}`);
+    
+    console.log('Run data loaded, setting up interview');
     
     // Set state for this interview
     state.runId = meetingRunId;
@@ -1215,27 +1229,35 @@ async function checkAndHandleMeetingPortalRedirect() {
     state.mode = "real"; // Force real mode for meeting portal
     state.selectedCandidate = meetingCandidateName;
     
-    // Switch to interview workspace
+    // Hide the main UI and show only interview
     state.activeWorkspace = "interview";
     
-    // Render the UI
+    // Render the interview panel
     renderAll();
     
+    // Brief delay to ensure UI is rendered
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     // Auto-start the interview
+    console.log('Auto-starting interview for:', meetingCandidateName);
     setStatus("🤖 Starting your AI interview...", "running");
     await startInterview();
     
-    // Auto-enable live mode (voice interview)
-    if (state.browserSpeechSupported && state.browserRecognitionSupported) {
-      setTimeout(() => {
+    console.log('Interview started successfully');
+    
+    // Auto-enable live mode (voice interview) after a short delay
+    setTimeout(() => {
+      if (state.browserSpeechSupported && state.browserRecognitionSupported) {
+        console.log('Enabling live mode with voice');
         state.liveMode = true;
         renderAll();
         speakLatestQuestion();
-      }, 1000);
-    }
+      }
+    }, 2000);
   } catch (error) {
     console.error("Error setting up meeting portal interview:", error);
     setStatus(`Error: ${error.message}`, "error");
+    renderAll();
   }
 }
 

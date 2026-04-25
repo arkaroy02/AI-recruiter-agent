@@ -659,3 +659,21 @@ hr {
     margin-top: 10px;
   }
 }
+
+/* Meeting Portal Mode - Hide navigation and controls */
+body.meeting-portal #nav,
+body.meeting-portal #header,
+body.meeting-portal .workspace-tabs,
+body.meeting-portal #resultsPanel {
+  display: none !important;
+}
+
+body.meeting-portal .app-grid {
+  grid-template-columns: 1fr !important;
+  padding: 0 !important;
+}
+
+body.meeting-portal #interviewPanel {
+  width: 100% !important;
+  max-width: 100% !important;
+}

@@ -213,6 +213,51 @@ def _clean_resume_text(text: str) -> str:
     return "\n".join(cleaned)
 
 
+def _extract_name_from_resume_text(resume_text: str) -> str | None:
+    """Extract candidate name from resume content, not filename."""
+    if not resume_text:
+        return None
+    
+    lines = [line.strip() for line in resume_text.splitlines() if line.strip()]
+    if not lines:
+        return None
+    
+    # Common patterns to look for
+    name_patterns = [
+        r"^(?:name|full name|candidate name)\s*[:\-]?\s*(.+)$",  # Name: John Doe
+        r"^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)$",  # John Doe (capitalized words)
+    ]
+    
+    # Check first 5 lines for name patterns
+    for line in lines[:5]:
+        # Check for explicit "Name:" pattern
+        for pattern in name_patterns:
+            match = re.match(pattern, line, re.IGNORECASE)
+            if match:
+                name = match.group(1).strip()
+                # Validate it looks like a name (2-4 words, no numbers, no special chars)
+                words = name.split()
+                if 2 <= len(words) <= 4 and not any(char.isdigit() for char in name):
+                    # Check each word starts with capital
+                    if all(w[0].isupper() or w[0].isalpha() for w in words if w):
+                        return name
+    
+    # Fallback: Check if first line looks like a name
+    first_line = lines[0]
+    words = first_line.split()
+    # A name typically has 2-4 words, starts with capital, no numbers/special chars
+    if (
+        2 <= len(words) <= 4
+        and all(word[0].isupper() for word in words if word)
+        and not any(char.isdigit() for char in first_line)
+        and not any(char in first_line for char in ['@', '#', '$', '%', '&', '*', '(', ')'])
+        and not any(word.lower() in ['cv', 'resume', 'curriculum', 'vitae', 'profile', 'email', 'phone', 'address', 'linkedin', 'github'] for word in words)
+    ):
+        return first_line
+    
+    return None
+
+
 def _guess_name_from_filename(filename: str) -> str:
     """Extract a clean name from filename, removing numbers, parentheses, and special chars."""
     stem = Path(filename or "Candidate").stem
@@ -259,14 +304,24 @@ def _fallback_skills(text: str) -> List[str]:
 
 
 def _fallback_candidate_from_text(resume_text: str, filename: str) -> Dict:
+    """Extract candidate info from resume text, prioritizing content over filename."""
     lines = [line.strip() for line in resume_text.splitlines() if line.strip()]
-    name = _guess_name_from_filename(filename)
+    
+    # Try to extract name from resume content first
+    name = _extract_name_from_resume_text(resume_text)
+    if not name:
+        # Only fall back to filename if we can't find name in content
+        name = _guess_name_from_filename(filename)
+    
+    # Try to extract title from second line (common pattern)
     title = "Candidate"
-    if lines:
-        if len(lines[0].split()) <= 5 and not any(char.isdigit() for char in lines[0]):
-            name = lines[0]
-        if len(lines) > 1 and len(lines[1]) <= 80:
-            title = lines[1]
+    if len(lines) > 1:
+        second_line = lines[1]
+        # Title is usually a short line (job title) after the name
+        if len(second_line) <= 80 and not any(char.isdigit() for char in second_line[:10]):
+            # Check if it looks like a job title (not email, phone, etc.)
+            if not any(word in second_line.lower() for word in ['@', 'email', 'phone', 'linkedin', 'github', 'address', 'www', 'http']):
+                title = second_line
 
     return {
         "id": f"resume-{uuid4().hex[:8]}",
@@ -281,6 +336,39 @@ def _fallback_candidate_from_text(resume_text: str, filename: str) -> Dict:
         "source_filename": filename,
         "resume_text": resume_text,
     }
+
+
+def _is_valid_name(name: str) -> bool:
+    """Check if a name looks like a real person's name, not a filename or garbage."""
+    if not name or len(name) < 3:
+        return False
+    
+    # Names should not contain these patterns
+    invalid_patterns = [
+        r'\d',  # Numbers
+        r'[(){}[\]]',  # Brackets
+        r'[._\-]',  # Underscores, dots, hyphens (common in filenames)
+        r'@',  # Email
+        r'cv\b', r'resume\b', r'curriculum', r'vitae',  # CV-related words
+        r'www', r'http', r'linkedin', r'github',  # URLs
+    ]
+    
+    lowered = name.lower()
+    for pattern in invalid_patterns:
+        if re.search(pattern, lowered, re.IGNORECASE):
+            return False
+    
+    # Name should have 2-4 words
+    words = name.split()
+    if not (2 <= len(words) <= 4):
+        return False
+    
+    # Each word should start with a letter
+    for word in words:
+        if not word or not word[0].isalpha():
+            return False
+    
+    return True
 
 
 def normalize_candidate_profile(profile: Dict, filename: str, resume_text: str) -> Dict:
@@ -307,9 +395,22 @@ def normalize_candidate_profile(profile: Dict, filename: str, resume_text: str) 
     except (TypeError, ValueError):
         years_exp = _fallback_years_exp(resume_text)
 
+    # Priority for name: 1) Valid parsed name, 2) Name from resume text, 3) Cleaned filename
+    parsed_name = str(profile.get("name") or "").strip()
+    if _is_valid_name(parsed_name):
+        name = parsed_name
+    else:
+        # Try to extract from resume content
+        extracted_name = _extract_name_from_resume_text(resume_text)
+        if extracted_name:
+            name = extracted_name
+        else:
+            # Last resort: use cleaned filename
+            name = _guess_name_from_filename(filename)
+
     candidate = {
         "id": str(profile.get("id") or f"resume-{uuid4().hex[:8]}"),
-        "name": str(profile.get("name") or _guess_name_from_filename(filename)).strip(),
+        "name": name,
         "title": str(profile.get("title") or "Candidate").strip(),
         "years_exp": years_exp,
         "skills": normalized_skills or _fallback_skills(resume_text) or ["Generalist"],

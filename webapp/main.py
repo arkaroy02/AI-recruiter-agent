@@ -369,21 +369,7 @@ async def shortlist_send_email(payload: ShortlistEmailRequest) -> Dict:
     Send a meeting link email to a shortlisted candidate.
     Experimental feature for interview portal access.
     """
-    run = get_run_or_404(payload.run_id)
-    results = run.get("results", {})
-    
-    # Find the candidate
-    candidates = results.get("ranked_candidates", results.get("candidates", []))
-    candidate = None
-    for c in candidates:
-        if c.get("name") == payload.candidate_name:
-            candidate = c
-            break
-    
-    if not candidate:
-        raise HTTPException(status_code=404, detail=f"Candidate not found: {payload.candidate_name}")
-    
-    # Generate meeting token
+    # Generate meeting token (works even if run is not in memory)
     meeting_token = generate_meeting_token(payload.run_id, payload.candidate_name)
     
     # Send email
@@ -396,16 +382,18 @@ async def shortlist_send_email(payload: ShortlistEmailRequest) -> Dict:
         base_url=base_url
     )
     
-    # Store meeting info in run
-    if "meetings" not in run:
-        run["meetings"] = {}
-    run["meetings"][payload.candidate_name] = {
-        "token": meeting_token,
-        "email": payload.candidate_email,
-        "sent_at": now_iso(),
-        "status": "pending",
-        "email_result": email_result
-    }
+    # Try to store meeting info in run if it exists in memory
+    run = RUN_STORE.get(payload.run_id)
+    if run:
+        if "meetings" not in run:
+            run["meetings"] = {}
+        run["meetings"][payload.candidate_name] = {
+            "token": meeting_token,
+            "email": payload.candidate_email,
+            "sent_at": now_iso(),
+            "status": "pending",
+            "email_result": email_result
+        }
     
     return {
         "success": email_result.get("success", False),
